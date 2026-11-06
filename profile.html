@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIVEX - Profile</title>
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        .profile-container {
+            max-width: 850px;
+            margin: 35px auto;
+            padding: 20px;
+        }
+
+        .profile-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,.08);
+        }
+
+        .profile-picture {
+            width: 125px;
+            height: 125px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #101827;
+            border: 4px solid #00BFA6;
+        }
+
+        .profile-name {
+            margin: 15px 0 5px;
+            color: #101827;
+        }
+
+        .profile-username {
+            color: #64748B;
+        }
+
+        .profile-bio {
+            margin: 15px auto;
+            max-width: 500px;
+            color: #475569;
+        }
+
+        .profile-stats {
+            display: flex;
+            justify-content: center;
+            gap: 35px;
+            margin: 25px 0;
+        }
+
+        .profile-stats div {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .profile-stats strong {
+            color: #101827;
+            font-size: 22px;
+        }
+
+        .profile-stats span {
+            color: #64748B;
+        }
+
+        .profile-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .profile-buttons button {
+            border: none;
+            border-radius: 8px;
+            padding: 11px 22px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .follow-btn {
+            background: #00BFA6;
+            color: white;
+        }
+
+        .unfollow-btn {
+            background: #101827;
+            color: white;
+        }
+
+        .edit-btn {
+            background: #64748B;
+            color: white;
+        }
+
+        .profile-editor {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .profile-editor textarea,
+        .profile-editor input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        .profile-posts {
+            margin-top: 35px;
+        }
+
+        .profile-post {
+            background: white;
+            padding: 18px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .profile-post img,
+        .profile-post video {
+            width: 100%;
+            max-height: 500px;
+            object-fit: contain;
+            margin-top: 12px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #00BFA6;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        #profileMessage {
+            margin-top: 12px;
+            color: #64748B;
+        }
+    </style>
+</head>
+
+<body class="dashboard-body">
+
+    <nav class="navbar">
+        <h1 class="logo">DIVEX</h1>
+        <a href="dashboard.html">Home</a>
+        <button onclick="logout()" class="logout-btn">
+            Logout
+        </button>
+    </nav>
+
+    <main class="profile-container">
+
+        <a href="dashboard.html" class="back-link">
+            ← Back to Home
+        </a>
+
+        <section class="profile-card">
+
+            <img
+                id="profilePicture"
+                class="profile-picture"
+                src="https://placehold.co/150x150?text=DIVEX"
+                alt="Profile picture"
+            >
+
+            <h2 id="profileName" class="profile-name">
+                Loading...
+            </h2>
+
+            <p id="profileUsername" class="profile-username"></p>
+
+            <p id="profileBio" class="profile-bio"></p>
+
+            <div class="profile-stats">
+
+                <div>
+                    <strong id="postsCount">0</strong>
+                    <span>Posts</span>
+                </div>
+
+                <div>
+                    <strong id="followersCount">0</strong>
+                    <span>Followers</span>
+                </div>
+
+                <div>
+                    <strong id="followingCount">0</strong>
+                    <span>Following</span>
+                </div>
+
+            </div>
+
+            <div class="profile-buttons">
+
+                <button
+                    id="followButton"
+                    class="follow-btn"
+                    onclick="followUser()">
+                    Follow
+                </button>
+
+                <button
+                    id="editButton"
+                    class="edit-btn"
+                    onclick="showEditor()"
+                    style="display:none;">
+                    Edit Profile
+                </button>
+
+            </div>
+
+            <p id="profileMessage"></p>
+
+            <!-- Edit Profile -->
+            <div id="profileEditor" class="profile-editor">
+
+                <h3>Edit Your Profile</h3>
+
+                <textarea
+                    id="bioInput"
+                    placeholder="Write your bio..."
+                    maxlength="500">
+                </textarea>
+
+                <input
+                    type="url"
+                    id="pictureInput"
+                    placeholder="Paste your profile picture URL"
+                >
+
+                <button class="follow-btn" onclick="saveProfile()">
+                    Save Changes
+                </button>
+
+            </div>
+
+        </section>
+
+        <!-- User Posts -->
+        <section class="profile-posts">
+
+            <h2>Posts</h2>
+
+            <div id="profilePosts">
+                Loading posts...
+            </div>
+
+        </section>
+
+    </main>
+
+    <script>
+        const API_URL = "http://localhost:4001/api";
+        const MEDIA_BASE_URL = "http://localhost:4001";
+
+        const token = localStorage.getItem("divexToken");
+
+        let currentUser = null;
+        let profile = null;
+
+        try {
+            currentUser = JSON.parse(
+                localStorage.getItem("divexUser") || "null"
+            );
+        } catch (error) {
+            console.error(error);
+        }
+
+        const params = new URLSearchParams(window.location.search);
+
+        const profileId = Number(
+            params.get("id") || (currentUser && currentUser.id)
+        );
+
+        if (!token || !currentUser || !profileId) {
+            logout();
+        } else {
+            loadProfile();
+            loadProfilePosts();
+        }
+
+        function headers() {
+            return {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            };
+        }
+
+        function logout() {
+            localStorage.removeItem("divexToken");
+            localStorage.removeItem("divexUser");
+            window.location.href = "login.html";
+        }
+
+        // LOAD PROFILE
+        async function loadProfile() {
+            try {
+                const response = await fetch(
+                    `${API_URL}/profile/${profileId}`,
+                    {
+                        headers: headers()
+                    }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message);
+                }
+
+                profile = data;
+
+                document.getElementById("profileName").textContent =
+                    data.full_name || "DIVEX Member";
+
+                document.getElementById("profileUsername").textContent =
+                    "@" + data.username;
+
+                document.getElementById("profileBio").textContent =
+                    data.bio || "No bio added yet.";
+
+                document.getElementById("postsCount").textContent =
+                    data.posts_count || 0;
+
+                document.getElementById("followersCount").textContent =
+                    data.followers_count || 0;
+
+                document.getElementById("followingCount").textContent =
+                    data.following_count || 0;
+
+                if (data.profile_picture) {
+                    document.getElementById("profilePicture").src =
+                        data.profile_picture;
+                }
+
+                const isMyProfile =
+                    String(currentUser.id) === String(profileId);
+
+                const followButton =
+                    document.getElementById("followButton");
+
+                const editButton =
+                    document.getElementById("editButton");
+
+                if (isMyProfile) {
+                    followButton.style.display = "none";
+                    editButton.style.display = "inline-block";
+
+                    document.getElementById("bioInput").value =
+                        data.bio || "";
+
+                    document.getElementById("pictureInput").value =
+                        data.profile_picture || "";
+
+                } else {
+                    followButton.style.display = "inline-block";
+                    editButton.style.display = "none";
+
+                    followButton.textContent =
+                        Number(data.is_following)
+                            ? "Unfollow"
+                            : "Follow";
+
+                    followButton.className =
+                        Number(data.is_following)
+                            ? "unfollow-btn"
+                            : "follow-btn";
+                }
+
+            } catch (error) {
+                console.error(error);
+
+                document.getElementById("profileMessage").textContent =
+                    error.message || "Could not load profile.";
+            }
+        }
+
+        // FOLLOW / UNFOLLOW
+        async function followUser() {
+
+            const button =
+                document.getElementById("followButton");
+
+            const isFollowing =
+                Number(profile.is_following);
+
+            const method = isFollowing ? "DELETE" : "POST";
+
+            button.disabled = true;
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/users/${profileId}/follow`,
+                    {
+                        method: method,
+                        headers: headers()
+                    }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.message);
+                }
+
+                document.getElementById("profileMessage").textContent =
+                    result.message;
+
+                await loadProfile();
+
+            } catch (error) {
+                console.error(error);
+
+                document.getElementById("profileMessage").textContent =
+                    error.message;
+
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        // SHOW EDIT FORM
+        function showEditor() {
+            const editor =
+                document.getElementById("profileEditor");
+
+            editor.style.display =
+                editor.style.display === "block"
+                    ? "none"
+                    : "block";
+        }
+
+        // SAVE PROFILE
+        async function saveProfile() {
+
+            const bio =
+                document.getElementById("bioInput").value;
+
+            const profile_picture =
+                document.getElementById("pictureInput").value.trim();
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/profile`,
+                    {
+                        method: "PUT",
+                        headers: headers(),
+                        body: JSON.stringify({
+                            bio,
+                            profile_picture
+                        })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.message);
+                }
+
+                document.getElementById("profileMessage").textContent =
+                    "Profile updated successfully!";
+
+                document.getElementById("profileEditor").style.display =
+                    "none";
+
+                await loadProfile();
+
+            } catch (error) {
+                console.error(error);
+
+                document.getElementById("profileMessage").textContent =
+                    error.message;
+            }
+        }
+
+        // LOAD USER POSTS
+        async function loadProfilePosts() {
+
+            const container =
+                document.getElementById("profilePosts");
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/profile/${profileId}/posts`,
+                    {
+                        headers: headers()
+                    }
+                );
+
+                const posts = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(posts.message);
+                }
+
+                container.replaceChildren();
+
+                if (posts.length === 0) {
+                    container.textContent = "No posts yet.";
+                    return;
+                }
+
+                posts.forEach(post => {
+
+                    const card =
+                        document.createElement("article");
+
+                    card.className = "profile-post";
+
+                    const caption =
+                        document.createElement("p");
+
+                    caption.textContent = post.caption || "";
+
+                    const mediaUrl = post.media_url;
+
+                    let media;
+
+                    if (post.media_type === "video") {
+                        media = document.createElement("video");
+                        media.controls = true;
+                    } else {
+                        media = document.createElement("img");
+                        media.alt = "User post";
+                    }
+
+                    media.src = mediaUrl.startsWith("http")
+                        ? mediaUrl
+                        : `${MEDIA_BASE_URL}${mediaUrl}`;
+
+                    const stats =
+                        document.createElement("p");
+
+                    stats.textContent =
+                        `❤️ ${post.likes_count || 0} Likes  |  💬 ${post.comments_count || 0} Comments`;
+
+                    card.append(caption, media, stats);
+
+                    container.appendChild(card);
+                });
+
+            } catch (error) {
+                console.error(error);
+
+                container.textContent =
+                    "Could not load profile posts.";
+            }
+        }
+    </script>
+
+</body>
+</html>
